@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>LogisticsHub</title>
+</head>
+<body>
+
+<h2>LogisticsHub (Fixed)</h2>
+<button onclick="doRefresh()">Làm mới</button>
+<div id="out">Đang tải...</div>
+
+<script>
+// SIMPLE CLEAN VERSION (fix syntax crash)
+
+const SOURCES = [
+  {name:"Logistics.gov.vn", url:"https://logistics.gov.vn/tin-hoat-dong/"},
+  {name:"VLR", url:"https://vlr.vn/thoi-su-logistics"}
+];
+
+async function getHTML(url){
+  try{
+    const res = await fetch(`/api/fetch?url=${encodeURIComponent(url)}`);
+    return await res.text();
+  }catch(e){
+    return '';
+  }
+}
+
+function extract(html, source){
+  const doc = new DOMParser().parseFromString(html,"text/html");
+  return [...doc.querySelectorAll("a")]
+    .map(a=>({
+      title:a.textContent.trim(),
+      link:a.href,
+      source
+    }))
+    .filter(x=>x.title.length>30 && x.link.startsWith("http"))
+    .slice(0,10);
+}
+
+async function loadAll(){
+  document.getElementById("out").innerHTML="Đang tải...";
+  const all = await Promise.all(SOURCES.map(async s=>{
+    try{
+      const html = await getHTML(s.url);
+      return extract(html,s.name);
+    }catch(e){
+      return [];
+    }
+  }));
+
+  const data = all.flat();
+
+  if(!data.length){
+    document.getElementById("out").innerHTML="❌ Không có dữ liệu";
+    return;
+  }
+
+  document.getElementById("out").innerHTML = data.map(a=>`
+    <div>
+      <b>${a.title}</b><br/>
+      <small>${a.source}</small><br/>
+      <a href="${a.link}" target="_blank">Xem</a>
+      <hr/>
+    </div>
+  `).join("");
+}
+
+function doRefresh(){
+  loadAll();
+}
+
+loadAll();
+</script>
+
+</body>
+</html>
